@@ -1,37 +1,84 @@
 # CosyAudiobook 🍎🔊
 
-EPUB 有聲書生成器 — 專為 Apple Silicon 優化，使用 MLX 框架與 CosyVoice3 / Qwen3 TTS 模型。
+> **EPUB → Audiobook** converter for Apple Silicon, powered by MLX + CosyVoice3 / Qwen3 TTS.  
+> 100% offline · Zero-shot voice cloning · Built-in translation · Modern Web UI
+
+---
 
 ## ✨ Features
 
-- **100% 離線 & 隱私**: 資料不離開你的 Mac
-- **硬體加速**: 基於 Apple MLX 框架，發揮 Neural Engine 與 GPU 效能
-- **聲音克隆 (Zero-Shot)**: 只需 5-10 秒參考音訊即可克隆任意聲音
-- **雙 TTS 引擎**: 支援 CosyVoice3（聲音克隆）與 Qwen3（內建音色）
-- **智慧章節處理**: 自動跳過目錄、版權頁等非正文內容
-- **EPUB 翻譯**: 內建翻譯功能（日→中、英→中 等）
-- **語音設計師**: 自訂音色生成
-- **現代 Web UI**: 深色模式控制面板，即時進度追蹤
+| Feature | Description |
+|---------|-------------|
+| 🔒 **100% Offline & Private** | All processing happens on your Mac. No data leaves your device. |
+| ⚡ **Apple Silicon Optimized** | Built on Apple's [MLX](https://github.com/ml-explore/mlx) framework for maximum GPU/Neural Engine utilization. |
+| 🎙️ **Voice Cloning** | Clone any voice from a 5–10 second audio sample (CosyVoice3, zero-shot). |
+| 🗣️ **Dual TTS Engines** | **CosyVoice3** for voice cloning, **Qwen3** for built-in voice presets. |
+| 📖 **Smart Chapter Detection** | Auto-skips TOC, copyright pages, and non-story content. |
+| 🌐 **EPUB Translation** | Translate between languages (JA↔ZH, EN↔ZH, etc.) before generating audio. |
+| 🎨 **Voice Designer** | Create custom voice styles with the built-in voice design tool. |
+| 💻 **Modern Web UI** | Dark-mode dashboard with real-time progress tracking. |
+
+## 🏗️ Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Web UI (Browser)"
+        UI[index.html - Dashboard]
+    end
+    
+    subgraph "Main venv (Python)"
+        API[app.py - FastAPI Server]
+        EPUB[epub_parser.py]
+        TRANS[translator.py]
+        AUDIO[audio_proc.py]
+        ENGINE[tts_engine.py]
+        VOICE[voice_design.py]
+    end
+    
+    subgraph "CosyVoice3 venv (Python)"
+        COSY[tts_cosyvoice3.py]
+        VERIFY[verify_env_cosy.py]
+    end
+    
+    subgraph "Models (HuggingFace)"
+        CV3["CosyVoice3 Model (~2GB)"]
+        QWEN["Qwen3 TTS Model"]
+    end
+    
+    UI <-->|REST API| API
+    API --> EPUB
+    API --> TRANS
+    API --> ENGINE
+    API --> VOICE
+    ENGINE -->|subprocess| COSY
+    ENGINE --> AUDIO
+    COSY --> CV3
+    ENGINE --> QWEN
+```
+
+> The project uses **two separate virtual environments** to avoid dependency conflicts between the main API and CosyVoice3's specific requirements.
 
 ## 🛠 Prerequisites
 
-- **硬體**: Mac with Apple Silicon (M1 或更新)
-- **系統**: macOS Sequoia 15.0+
-- **軟體**: Python 3.10+、FFmpeg
+- **Hardware**: Mac with Apple Silicon (M1 / M2 / M3 / M4)
+- **OS**: macOS 14.0+ (Sonoma or later recommended)
+- **Software**: Python 3.10+, FFmpeg
 
 ```bash
-# 安裝 FFmpeg
+# Install FFmpeg (if not already installed)
 brew install ffmpeg
 ```
 
 ## 🚀 Quick Start
 
-### 方法一：Mac Portable（推薦）
-1. 下載 `CosyAudiobook_Mac_Portable.zip`
-2. 解壓縮後雙擊 `start_app.command`
-3. 瀏覽器會自動開啟 http://localhost:8000
+### Option A: Portable Package (Recommended)
 
-### 方法二：從原始碼安裝
+1. Download `CosyAudiobook_Mac_Portable.zip` from [Releases](https://github.com/mengtsan/EbookTools/releases)
+2. Unzip and double-click `start_app.command`
+3. Browser opens automatically at http://localhost:8000
+
+### Option B: From Source
+
 ```bash
 git clone https://github.com/mengtsan/EbookTools.git
 cd EbookTools
@@ -39,53 +86,99 @@ chmod +x start_app.command
 ./start_app.command
 ```
 
-> **首次啟動**會自動建立虛擬環境並安裝所有依賴，需要幾分鐘。
-> 之後的啟動會跳過安裝步驟，幾秒即可啟動。
+> [!NOTE]
+> **First launch** auto-creates two virtual environments and installs all dependencies (~5 min).  
+> **Subsequent launches** skip installation entirely and start in seconds.
 
-## 📖 Usage
+## 📖 Usage Guide
 
-1. 開啟 http://localhost:8000
-2. **上傳語音**: 上傳參考音訊（WAV/MP3，約 10 秒清晰語音）
-3. **上傳電子書**: 拖放 EPUB 檔案
-4. **選擇章節**: 確認要生成的章節
-5. **開始生成**: 點擊「開始生成」
+### 1. Upload Reference Voice
+Upload a WAV or MP3 file (~10 seconds of clean speech) for voice cloning.
 
-> 首次執行會自動從 Hugging Face 下載模型（約 2GB），之後完全離線運作。
+### 2. Upload EPUB
+Drag & drop your EPUB file. The parser auto-detects chapters and filters non-content pages.
+
+### 3. Choose TTS Model
+- **CosyVoice3** — Uses your uploaded reference voice (voice cloning)
+- **Qwen3** — Uses built-in voice presets (no reference needed)
+
+### 4. Select Chapters & Generate
+Check the chapters you want, click "Start Generation", and monitor real-time progress.
+
+### 5. Download
+Download individual chapter MP3s or the complete audiobook.
+
+> [!NOTE]
+> The first generation will download model weights from Hugging Face (~2GB).  
+> All subsequent runs work **fully offline**.
 
 ## 📂 Project Structure
 
 ```
 EbookTools/
-├── app.py                      # FastAPI 後端伺服器
-├── start_app.command            # Mac 一鍵啟動腳本
-├── package_for_release.sh       # 打包發行腳本
-├── requirements.txt             # 主環境依賴 (Qwen3 + API)
-├── requirements_cosy.txt        # CosyVoice3 環境依賴
-├── VERSION                      # 版本號
-├── core/                        # 核心模組
-│   ├── tts_engine.py            # TTS 引擎調度
-│   ├── tts_cosyvoice3.py        # CosyVoice3 TTS Worker
-│   ├── tts_qwen3.py             # Qwen3 TTS Worker
-│   ├── epub_parser.py           # EPUB 解析
-│   ├── epub_writer.py           # EPUB 寫入
-│   ├── translator.py            # 翻譯引擎
-│   ├── voice_design.py          # 語音設計
-│   ├── audio_proc.py            # 音訊處理
-│   ├── transcribe.py            # 語音轉文字
-│   └── verify_env_cosy.py       # 環境完整性驗證
-└── static/
-    └── index.html               # Web UI
+├── app.py                      # FastAPI backend server
+├── start_app.command            # One-click Mac launcher
+├── package_for_release.sh       # Portable zip packager
+├── requirements.txt             # Main env dependencies
+├── requirements_cosy.txt        # CosyVoice3 env dependencies
+├── VERSION                      # Version tracking
+│
+├── core/                        # Core modules
+│   ├── tts_engine.py            # TTS engine dispatcher
+│   ├── tts_cosyvoice3.py        # CosyVoice3 subprocess worker
+│   ├── tts_qwen3.py             # Qwen3 TTS worker
+│   ├── epub_parser.py           # EPUB parsing & chapter detection
+│   ├── epub_writer.py           # EPUB writing (translated output)
+│   ├── translator.py            # Translation engine
+│   ├── translator_worker.py     # Translation subprocess worker
+│   ├── voice_design.py          # Voice designer
+│   ├── voice_design_worker.py   # Voice design subprocess worker
+│   ├── audio_proc.py            # Audio stitching & MP3 export
+│   ├── transcribe.py            # Speech-to-text (MLX Whisper)
+│   └── verify_env_cosy.py       # Environment integrity checker
+│
+├── static/
+│   └── index.html               # Web UI (single-page app)
+│
+├── voices/                      # Reference voice samples (user uploads)
+├── uploads/                     # Uploaded EPUB files
+├── output/                      # Generated audiobook files
+└── translations/                # Translated EPUB files
 ```
 
 ## 🔧 Troubleshooting
 
-| 問題 | 解決方案 |
-|------|---------|
-| Port 8000 被佔用 | `pkill -f uvicorn` 或修改啟動指令的 port |
-| 模型下載失敗 | 確保有網路連線（僅首次需要） |
-| `No module named 'einops'` | 刪除 `venv_cosyvoice3` 資料夾後重啟 |
-| pip 安裝異常 | 執行 `pip cache purge` 清除快取後重試 |
-| 生成 0 bytes 檔案 | 檢查 `install.log` 中的錯誤訊息 |
+| Problem | Solution |
+|---------|----------|
+| Port 8000 already in use | Run `pkill -f uvicorn` or change port |
+| Model download fails | Ensure internet connection (first run only) |
+| `No module named 'einops'` | Delete `venv_cosyvoice3/` folder and restart |
+| pip install errors | Run `pip cache purge` then retry |
+| 0-byte output files | Check `install.log` for error details |
+| "Unidentified developer" warning | Right-click → Open, or allow in System Settings → Privacy & Security |
+| Double-click doesn't work | Right-click `start_app.command` → Open |
+
+## 🔄 How the Dual-venv System Works
+
+The project maintains **two virtual environments** to handle dependency conflicts:
+
+| Environment | Purpose | Key Packages |
+|-------------|---------|-------------|
+| `venv/` | Main API server, Qwen3 TTS | FastAPI, torch, mlx, mlx-audio |
+| `venv_cosyvoice3/` | CosyVoice3 voice cloning | mlx-audio, mlx-audio-plus, mlx-lm |
+
+The main server (`app.py`) runs in `venv/` and spawns CosyVoice3 as a **subprocess** using `venv_cosyvoice3/bin/python`, communicating via JSON over stdout/stderr.
+
+A **marker file system** tracks installation state:
+- `venv/.installed_{hash}` — checksum of `requirements.txt + requirements_cosy.txt`
+- If the hash changes (you updated dependencies), the environment auto-reinstalls.
 
 ## 📜 License
+
 MIT License
+
+## 🙏 Acknowledgments
+
+- [MLX](https://github.com/ml-explore/mlx) — Apple's machine learning framework
+- [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) — Zero-shot voice cloning
+- [mlx-audio](https://github.com/Blaizzy/mlx-audio) — MLX audio models
