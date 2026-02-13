@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+venv_*/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Build artifacts
+*.zip
+
+# User data (generated at runtime)
+uploads/
+output/
+voices/
+
+# Debug scripts
+debug_*.py
+inspect_config.py
+verify_env.py
+
+# Temporary audio files
+audio_*.wav
+
+# Translated epub files (user generated)
+translations/

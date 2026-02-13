@@ -1,0 +1,12 @@
+numpy
+mlx
+transformers==5.0.0rc3
+mlx-lm==0.30.5
+mlx-audio==0.3.1
+huggingface_hub
+soundfile
+python-multipart
+scipy
+sounddevice
+mlx-whisper
+einops

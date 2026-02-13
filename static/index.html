@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CosyVoice Audiobook Factory</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+
+        .progress-bar-striped {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+
+        @keyframes progress-bar-stripes {
+            0% {
+                background-position: 1rem 0;
+            }
+
+            100% {
+                background-position: 0 0;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden flex flex-col">
+
+    <div id="app" class="flex-1 flex flex-col h-full">
+        <!-- Header -->
+        <header class="h-16 border-b border-gray-800 flex items-center px-6 glass-panel m-4 mb-0">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
+                CosyAudiobook 有聲書工廠 <span class="text-xs text-gray-500 font-mono ml-2">Mac Mini / MLX 特別版</span>
+            </h1>
+        </header>
+
+        <!-- Main Content -->
+
+        <!-- Navigation Tabs -->
+        <div class="flex justify-center gap-4 mt-2">
+            <button @click="currentTab = 'audiobook'" class="px-6 py-2 rounded-full font-medium transition-colors"
+                :class="currentTab === 'audiobook' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+                有聲書製作
+            </button>
+            <button @click="currentTab = 'voice_design'" class="px-6 py-2 rounded-full font-medium transition-colors"
+                :class="currentTab === 'voice_design' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+                聲音設計師 (Qwen3-TTS)
+            </button>
+            <button @click="currentTab = 'translation'" class="px-6 py-2 rounded-full font-medium transition-colors"
+                :class="currentTab === 'translation' ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'">
+                EPUB 翻譯 (HY-MT1.5)
+            </button>
+        </div>
+
+        <div class="flex-1 flex gap-4 p-4 overflow-hidden relative">
+
+            <!-- TRANSLATION UI -->
+            <div v-if="currentTab === 'translation'"
+                class="w-full max-w-4xl mx-auto glass-panel p-8 flex flex-col gap-6 overflow-y-auto">
+                <div class="flex items-center justify-between">
+                    <h2
+                        class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-400">
+                        EPUB 翻譯工廠</h2>
+                    <span class="text-xs text-gray-400">由 HY-MT1.5-7B-mlx 驅動</span>
+                </div>
+
+                <!-- Step 1: Upload -->
+                <div class="space-y-4">
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-emerald-500 transition-colors cursor-pointer"
+                        @click="$refs.transEpubInput.click()" :class="{'border-emerald-500 bg-emerald-900/20': bookId}">
+                        <input type="file" ref="transEpubInput" class="hidden" accept=".epub" @change="uploadEpub">
+                        <div v-if="!bookId">
+                            <p class="text-gray-400">將 EPUB 檔案拖放到此處上傳</p>
+                        </div>
+                        <div v-else>
+                            <p class="text-emerald-400 font-bold">✓ 書籍已就緒</p>
+                            <p class="text-sm text-white mt-1">{{ bookMeta.filename }}</p>
+                            <p class="text-xs text-gray-400 mt-2">共 {{ chapters.length }} 章</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Settings -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">來源語言</label>
+                        <select v-model="transSourceLang"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-200 focus:ring-emerald-500">
+                            <option value="auto">自動偵測 (Auto)</option>
+                            <option value="ja">日文 (Japanese)</option>
+                            <option value="en">英文 (English)</option>
+                            <option value="ko">韓文 (Korean)</option>
+                            <option value="zh">中文 (Chinese)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">目標語言</label>
+                        <select v-model="transTargetLang"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-200 focus:ring-emerald-500">
+                            <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
+                            <option value="zh">簡體中文 (Simplified Chinese)</option>
+                            <option value="en">英文 (English)</option>
+                            <option value="ja">日文 (Japanese)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action -->
+                <button @click="startTranslation" :disabled="!bookId || transStatus === 'processing'"
+                    class="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span v-if="transStatus === 'processing'">翻譯中... {{ transProgress }}%</span>
+                    <span v-else>開始全書翻譯</span>
+                </button>
+
+                <!-- Status & Result -->
+                <div v-if="transStatus !== 'idle'" class="mt-4 p-4 bg-black/30 rounded-lg border border-gray-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-mono text-emerald-400">{{ transMessage }}</span>
+                        <span class="text-xs text-gray-500">{{ transProgress }}%</span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-900 rounded-full h-2 mb-4 overflow-hidden">
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-300"
+                            :style="{width: transProgress + '%'}"></div>
+                    </div>
+
+                    <div v-if="transStatus === 'completed' && transDownloadUrl" class="text-center animate-fade-in">
+                        <a :href="transDownloadUrl" download
+                            class="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-colors">
+                            ⬇️ 下載翻譯後的 EPUB
+                        </a>
+                    </div>
+                    <div v-if="transStatus === 'failed'" class="text-center text-red-500 font-bold">
+                        翻譯任務失敗，請檢查後端日誌。
+                    </div>
+                </div>
+            </div>
+
+            <!-- VOICE USER INTERFACE -->
+            <div v-if="currentTab === 'voice_design'"
+                class="w-full max-w-4xl mx-auto glass-panel p-8 flex flex-col gap-6 overflow-y-auto">
+                <div class="flex items-center justify-between">
+                    <h2
+                        class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+                        聲音設計師</h2>
+                    <span class="text-xs text-gray-400">由 Qwen3-TTS VoiceDesign 驅動</span>
+                </div>
+
+                <!-- Inputs -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">說話內容</label>
+                        <textarea v-model="vdText" rows="3"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-200 focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="輸入文字..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">聲音描述 (指令)</label>
+                        <textarea v-model="vdInstruct" rows="3"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-200 focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="描述想要的聲音特徵 (例如：低沉沙啞的男聲...)"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">語言</label>
+                        <select v-model="vdLanguage"
+                            class="bg-gray-900 border border-gray-700 rounded-lg p-2 text-gray-200 focus:ring-purple-500">
+                            <option value="Chinese">中文</option>
+                            <option value="English">英文</option>
+                            <option value="Japanese">日文</option>
+                            <option value="Korean">韓文</option>
+                            <option value="German">德文</option>
+                            <option value="French">法文</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action -->
+                <button @click="generateVoiceDesign" :disabled="vdGenerating"
+                    class="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all text-white disabled:opacity-50">
+                    <span v-if="vdGenerating">正在生成聲音... (初始化可能需要一點時間)</span>
+                    <span v-else>生成聲音設計</span>
+                </button>
+
+                <!-- Result -->
+                <div v-if="vdResultPath"
+                    class="mt-6 p-6 border border-gray-700 rounded-xl bg-black/20 flex flex-col items-center gap-4 animate-fade-in">
+                    <h3 class="text-lg font-semibold text-green-400">生成成功！</h3>
+                    <audio controls :src="vdResultPath" class="w-full"></audio>
+
+                    <button @click="saveVoiceDesign"
+                        class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full font-medium transition-colors text-white">
+                        儲存為參考聲音
+                    </button>
+                    <p class="text-xs text-gray-500">儲存後可在有聲書的「聲音選擇」列表中使用。
+                    </p>
+                </div>
+            </div>
+
+            <!-- AUDIOBOOK UI (Existing) wrapped in v-show -->
+            <!-- Left Column: Controls -->
+            <div v-show="currentTab === 'audiobook'" class="w-1/3 flex flex-col gap-4">
+
+                <!-- Step 1: Upload Voice (Optional) -->
+                <div class="glass-panel p-6 flex flex-col gap-4">
+                    <h2 class="text-lg font-semibold text-white">1. 聲音選擇 <span class="text-xs text-gray-500">(可選)</span>
+                    </h2>
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                        @click="$refs.voiceInput.click()" :class="{'border-green-500 bg-green-900/20': voiceId}">
+                        <input type="file" ref="voiceInput" class="hidden" accept=".wav,.mp3" @change="uploadVoice">
+                        <div v-if="!voiceId">
+                            <p class="text-gray-400">📢 預設聲音</p>
+                            <p class="text-xs text-gray-600 mt-2">點擊上傳 5-10 秒音檔以進行聲音複製</p>
+                        </div>
+                        <div v-else>
+                            <p class="text-green-400 font-bold">✓ 自訂聲音已載入</p>
+                            <p class="text-xs text-gray-400">{{ voiceFilename }}</p>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Step 1.5: Model Selection -->
+                <div class="glass-panel p-6 flex flex-col gap-4">
+                    <h2 class="text-lg font-semibold text-white">2. 模型選擇</h2>
+                    <select v-model="selectedModel"
+                        class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500">
+                        <option value="qwen3">Qwen3-TTS (推薦 - 穩定/支援聲音複製)</option>
+                        <option value="cosyvoice3">CosyVoice3 (實驗性 - 可能不支援部分功能)</option>
+                    </select>
+                </div>
+
+                <!-- Step 2: Upload Ebook -->
+                <div class="glass-panel p-6 flex flex-col gap-4 flex-1">
+                    <h2 class="text-lg font-semibold text-white">3. 電子書來源</h2>
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                        @click="$refs.epubInput.click()" :class="{'border-green-500 bg-green-900/20': bookId}">
+                        <input type="file" ref="epubInput" class="hidden" accept=".epub" @change="uploadEpub">
+                        <div v-if="!bookId">
+                            <p class="text-gray-400">將 EPUB 檔案拖放到此處</p>
+                        </div>
+                        <div v-else>
+                            <p class="text-green-400 font-bold">✓ 書籍已解析</p>
+                            <p class="text-sm text-white mt-1">{{ bookMeta.filename }}</p>
+                            <p class="text-xs text-gray-400 mt-2">共 {{ chapters.length }} 章</p>
+                        </div>
+                    </div>
+
+                    <button v-if="bookId && !taskId" @click="startGeneration"
+                        class="mt-auto w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg font-bold hover:shadow-lg hover:shadow-blue-500/30 transition-all text-white">
+                        開始生成
+                    </button>
+
+                    <div v-if="taskId" class="mt-auto text-center bg-black/40 rounded-lg p-3 border border-gray-700">
+                        <div v-if="taskStatus === 'processing'" class="text-left mb-2 flex flex-col gap-1">
+                            <p class="text-sm font-bold text-blue-400 truncate">正在處理：{{ currentChapterTitle || '初始化中...'
+                                }}</p>
+                            <div class="flex justify-between text-xs text-gray-400">
+                                <span>進度：{{ currentChapterIndex }} / {{ totalChapters }} 章</span>
+                                <span class="text-blue-400 font-mono">{{ currentWordsProcessed }} / {{ currentWordsTotal
+                                    }} 字</span>
+                            </div>
+                        </div>
+                        <div v-else class="mb-2">
+                            <p class="text-xs text-gray-400">狀態：{{ taskStatus }}</p>
+                        </div>
+
+                        <button v-if="taskStatus === 'completed'" @click="resetTask"
+                            class="w-full py-2 bg-green-600 hover:bg-green-500 transition-colors rounded text-sm mb-2 font-bold text-white shadow-lg shadow-green-900/50">
+                            🎉 製作完成！(點擊開始新任務)
+                        </button>
+
+                        <div class="w-full bg-gray-900 rounded-full h-2.5 mb-1 overflow-hidden border border-gray-800">
+                            <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full progress-bar-striped transition-all duration-500 ease-out"
+                                :style="{width: chapterPercent + '%'}"></div>
+                        </div>
+                        <p class="text-right text-[10px] text-gray-500 mt-1">{{ chapterPercent }}% (本章進度)</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Table of Contents -->
+            <div v-show="currentTab === 'audiobook'" class="w-2/3 glass-panel flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h2 class="font-semibold text-white">目錄 / 章節選擇</h2>
+                    <div class="text-xs text-gray-400">
+                        <span class="text-green-400">{{ selectedChapters.length }}</span> 已選擇
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-2">
+                    <div v-if="chapters.length === 0" class="h-full flex items-center justify-center text-gray-500">
+                        等待 EPUB 檔案...
+                    </div>
+
+                    <div v-else class="space-y-1">
+                        <div v-for="chapter in chapters" :key="chapter.id"
+                            class="flex items-center p-3 rounded hover:bg-white/5 transition-colors cursor-pointer"
+                            :class="{'opacity-50': chapter.skippable && !chapter.selected}"
+                            @click="toggleChapter(chapter)">
+
+                            <input type="checkbox" :checked="chapter.selected"
+                                class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-600 focus:ring-offset-gray-800">
+
+                            <div class="ml-3 flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-gray-200 truncate">{{ chapter.title }}</span>
+                                    <span v-if="chapter.skippable"
+                                        class="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">建議跳過</span>
+                                </div>
+                                <div class="flex items-center gap-4 mt-1">
+                                    <span class="text-xs text-gray-500">{{ chapter.word_count }} 字</span>
+                                    <!-- Processing Time -->
+                                    <span v-if="chapter.processing_time" class="text-xs text-green-400 font-mono">⏱ {{
+                                        chapter.processing_time }}</span>
+                                    <!-- Preview Text Snippet -->
+                                    <span class="text-xs text-gray-600 truncate max-w-md">{{ chapter.text.substring(0,
+                                        50) }}...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Console -->
+                <div
+                    class="h-32 bg-black/50 border-t border-gray-700 p-2 overflow-y-auto font-mono text-xs text-green-400">
+                    <div v-for="(log, i) in logs" :key="i">> {{ log }}</div>
+                    <div v-if="logs.length === 0" class="text-gray-600">正在等待日誌...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    voiceId: null,
+                    voiceFilename: '',
+                    bookId: null,
+                    bookMeta: {},
+                    chapters: [],
+                    selectedModel: 'qwen3',
+                    taskId: null,
+                    taskStatus: 'idle',
+                    progress: 0,
+                    currentChapterTitle: '',
+                    currentChapterIndex: 0,
+                    totalChapters: 0,
+                    remainingChapters: 0,
+                    currentWordsProcessed: 0,
+                    currentWordsTotal: 0,
+                    logs: [],
+                    // Voice Design Data
+                    currentTab: 'audiobook', // 'audiobook', 'voice_design', 'translation'
+                    vdText: "哥哥，你回來啦，人家等了你好久好久了，要抱抱！",
+                    vdInstruct: "體現撒嬌稚嫩的蘿莉女聲，音調偏高且起伏明顯，營造出黏人、做作又刻意賣萌的聽覺效果。",
+                    vdLanguage: "Chinese",
+                    vdGenerating: false,
+                    vdResultPath: null,
+                    vdGenId: null,
+                    // Translation Data
+                    transSourceLang: "auto",
+                    transTargetLang: "zh-TW",
+                    transStatus: "idle",
+                    transProgress: 0,
+                    transMessage: "等待開始...",
+                    transTaskId: null,
+                    transDownloadUrl: null
+                }
+            },
+            computed: {
+                selectedChapters() {
+                    return this.chapters.filter(c => c.selected);
+                },
+                chapterPercent() {
+                    if (!this.currentWordsTotal) return 0;
+                    return Math.floor((this.currentWordsProcessed / this.currentWordsTotal) * 100);
+                }
+            },
+            methods: {
+                async uploadVoice(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const res = await fetch('/api/upload_voice', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        this.voiceId = data.voice_id;
+                        this.voiceFilename = data.filename;
+                        this.logs.push(`聲音已上傳：${data.filename}`);
+                    } catch (err) {
+                        alert('上傳失敗');
+                    }
+                },
+                async uploadEpub(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    this.logs.push(`正在解析 EPUB：${file.name}...`);
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const res = await fetch('/api/upload_epub', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        this.bookId = data.book_id;
+                        this.bookMeta = { filename: data.filename };
+
+                        // Map backend chapters to frontend model
+                        this.chapters = data.chapters.map(c => ({
+                            ...c,
+                            // Use parsed 'skippable' flag to determine selection
+                            selected: !c.skippable
+                        }));
+
+                        this.logs.push(`EPUB 解析完成。共發現 ${this.chapters.length} 章。`);
+                    } catch (err) {
+                        alert('EPUB 解析失敗');
+                        console.error(err);
+                    }
+                },
+                toggleChapter(chapter) {
+                    chapter.selected = !chapter.selected;
+                },
+                async startGeneration() {
+                    if (!this.bookId) return;  // Voice is now optional
+
+                    const selectedIds = this.chapters
+                        .filter(c => c.selected)
+                        .map(c => c.id);
+
+                    if (selectedIds.length === 0) {
+                        alert("請至少選擇一個章節。");
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('book_id', this.bookId);
+                    if (this.voiceId) {
+                        formData.append('voice_id', this.voiceId);
+                    }
+                    formData.append('selected_chapters', JSON.stringify(selectedIds));
+                    formData.append('model_type', this.selectedModel);
+
+                    try {
+                        const res = await fetch('/api/generate', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        this.taskId = data.task_id;
+                        this.taskStatus = 'processing';
+                        this.logs.push(`任務已開始：${this.taskId}`);
+                        this.startPolling();
+                    } catch (err) {
+                        alert("啟動失敗");
+                    }
+                },
+                // Translation Methods
+                async startTranslation() {
+                    // alert("Debug: startTranslation called"); // Use if needed
+                    if (!this.bookId) {
+                        alert("Debug: No bookId set!");
+                        return;
+                    }
+
+                    this.transStatus = 'processing';
+                    this.transMessage = '正在請求翻譯服務...';
+                    this.transProgress = 0;
+                    this.transDownloadUrl = null;
+
+                    const formData = new FormData();
+                    formData.append('book_id', this.bookId);
+                    formData.append('source_lang', this.transSourceLang);
+                    formData.append('target_lang', this.transTargetLang);
+
+                    try {
+                        console.log("Sending translation request...");
+                        const res = await fetch('/api/translate_epub', { method: 'POST', body: formData });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`HTTP Error: ${res.status} - ${errText}`);
+                        }
+
+                        const data = await res.json();
+                        console.log("Task created:", data);
+                        this.transTaskId = data.task_id;
+                        this.pollTranslation();
+                    } catch (err) {
+                        this.transStatus = 'failed';
+                        this.transMessage = '啟動翻譯任務失敗: ' + err.message;
+                        alert("啟動翻譯失敗: " + err.message);
+                        console.error(err);
+                    }
+                },
+                pollTranslation() {
+                    console.log("Starting polling for task:", this.transTaskId);
+                    const evtSource = new EventSource(`/api/translation_progress/${this.transTaskId}`);
+                    
+                    evtSource.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log("Poll data:", data);
+                        
+                        if (data.status === 'not_found') {
+                            evtSource.close();
+                            return;
+                        }
+                        
+                        this.transStatus = data.status;
+                        this.transProgress = data.progress;
+                        this.transMessage = data.message;
+                        
+                        if (data.status === 'completed') {
+                            evtSource.close();
+                            this.transDownloadUrl = `/api/download_translation/${data.output_filename}`;
+                        } else if (data.status === 'failed') {
+                            evtSource.close();
+                        }
+                    };
+                    
+                    evtSource.onerror = (err) => {
+                        console.error("EventSource failed:", err);
+                        evtSource.close();
+                    };
+                },
+                startPolling() {
+                    const evtSource = new EventSource(`/api/progress/${this.taskId}`);
+
+                    evtSource.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+
+                        if (data.status === 'not_found') {
+                            evtSource.close();
+                            return;
+                        }
+
+                        this.taskStatus = data.status;
+                        this.progress = data.progress;
+                        this.currentChapterTitle = data.current_chapter;
+                        this.currentChapterIndex = data.current_chapter_index || 0;
+                        this.totalChapters = data.total_chapters || 0;
+                        this.remainingChapters = data.remaining_chapters || 0;
+                        this.currentWordsProcessed = data.current_words_processed || 0;
+                        this.currentWordsTotal = data.current_words_total || 0;
+
+                        // Update log with current chapter if changed
+                        if (data.current_chapter && this.logs[this.logs.length - 1] !== `正在處理：${data.current_chapter}`) {
+                            this.logs.push(`正在處理：${data.current_chapter}`);
+                        }
+
+                        // Update chapter timings
+                        if (data.chapter_times) {
+                            for (const [id, time] of Object.entries(data.chapter_times)) {
+                                const chapter = this.chapters.find(c => String(c.id) === id || String(c.id) === String(id));
+                                if (chapter) {
+                                    chapter.processing_time = time;
+                                }
+                            }
+                        }
+
+                        // Append backend specific logs if any (simple implementation)
+                        if (data.logs && data.logs.length > 0) {
+                            // this.logs.push(...data.logs);
+                        }
+
+                        if (data.status === 'completed' || data.status === 'failed') {
+                            evtSource.close();
+                            const statusText = data.status === 'completed' ? '完成' : '失敗';
+                            this.logs.push(`任務${statusText}！`);
+                        }
+                    };
+                },
+                resetTask() {
+                    // Reset task state to allow starting a new generation
+                    this.taskId = null;
+                    this.taskStatus = 'idle';
+                    this.progress = 0;
+                    this.currentChapterTitle = '';
+                    this.currentChapterIndex = 0;
+                    this.remainingChapters = 0;
+                    this.currentWordsProcessed = 0;
+                    this.currentWordsTotal = 0;
+                    this.logs.push('--- 已重置，可開始新任務 ---');
+                },
+                // Voice Design Methods
+                async generateVoiceDesign() {
+                    if (!this.vdText || !this.vdInstruct) return;
+
+                    this.vdGenerating = true;
+                    this.vdResultPath = null;
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('text', this.vdText);
+                        formData.append('instruct', this.vdInstruct);
+                        formData.append('language', this.vdLanguage);
+
+                        const res = await fetch('/api/voice_design/generate', { method: 'POST', body: formData });
+                        if (!res.ok) throw new Error("Generation failed");
+
+                        const data = await res.json();
+                        // Assuming path is relative or we use the serve endpoint
+                        // data.filename is safe for /api/audio/
+                        this.vdResultPath = `/api/audio/${data.filename}`;
+                        this.vdGenId = data.gen_id;
+
+                    } catch (e) {
+                        alert("聲音生成失敗：" + e.message);
+                    } finally {
+                        this.vdGenerating = false;
+                    }
+                },
+                async saveVoiceDesign() {
+                    const name = prompt("請為此新聲音輸入一個名稱：");
+                    if (!name) return;
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('gen_id', this.vdGenId);
+                        formData.append('name', name);
+
+                        const res = await fetch('/api/voice_design/save_as_ref', { method: 'POST', body: formData });
+                        if (!res.ok) throw new Error("Save failed");
+
+                        const data = await res.json();
+                        alert(`聲音已儲存為：${data.saved_name}`);
+
+                        // The user can just drag it out or we can add a 'refresh' mechanism.
+                        // Given current UI only has 'upload', let's just tell user it's saved.
+
+                    } catch (e) {
+                        alert("儲存失敗：" + e.message);
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
