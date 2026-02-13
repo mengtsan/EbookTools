@@ -23,6 +23,7 @@ venv_*/
 
 # Logs
 *.log
+install.log
 
 # Build artifacts
 *.zip

@@ -17,7 +17,8 @@ cp app.py "$TEMP_DIR/"
 cp requirements.txt "$TEMP_DIR/"
 cp requirements_cosy.txt "$TEMP_DIR/"
 cp start_app.command "$TEMP_DIR/"
-cp README_USER.md "$TEMP_DIR/" 2>/dev/null || echo "Warning: README_USER.md not found (creating empty one later if needed)"
+cp VERSION "$TEMP_DIR/" 2>/dev/null || echo "0.0.0" > "$TEMP_DIR/VERSION"
+cp README_USER.md "$TEMP_DIR/" 2>/dev/null || true
 
 # Copy directories
 cp -r core "$TEMP_DIR/"
