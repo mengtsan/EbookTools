@@ -1,74 +1,73 @@
-# CosyAudiobook v0.2.0 - 系統架構與注意事項 (Issue Log)
+# CosyAudiobook v0.3.0 - 系統架構與開發狀態 (System Status)
 
-此文件紀錄目前的系統架構設計決策、已知的依賴問題以及未來的潛在改進方向。
+此文件紀錄目前的系統架構設計 (v0.3.0)、已實作功能以及開發注意事項。舊有資訊已移除。
 
-## 1. 系統架構設計 (System Architecture)
+## 1. 核心架構 (Core Architecture)
 
-### 1.1 雙虛擬環境設計 (Dual-venv Strategy)
-目前的系統運作依賴兩個獨立的 Python 虛擬環境，這是為了避開依賴衝突：
-
-*   **`venv` (Main API)**: 
-    *   負責主程式 `app.py`、Web UI、EPUB 解析、翻譯模組。
-    *   主要依賴：`FastAPI`, `Uvicorn`, `ebooklib`, `BeautifulSoup`。
-    *   包含 **Qwen3 TTS** (因為它的依賴較單純，不衝突)。
-
+### 1.1 雙虛擬環境設計 (Dual-venv)
+為了解決依賴衝突，系統運作於兩個獨立環境：
+*   **`venv` (Main)**:
+    *   負責 API (FastAPI), Web UI, EPUB 解析, Qwen3-TTS 推論。
+    *   主要依賴: `mlx-audio`, `ffmpeg-python`, `ebooklib`, `fastapi`.
 *   **`venv_cosyvoice3` (Worker)**:
-    *   專門負責 **CosyVoice3** 的推論。
-    *   主要依賴：`mlx-audio`, `mlx-audio-plus` (模型來源), `mlx-lm`, `einops`。
-    *   **衝突點**：`mlx-audio-plus==0.1.8` 強制要求舊版的 `transformers<5.0.0` 和 `mlx-lm<0.30.0`，這與其他現代套件衝突。我們採用了 `--no-deps` 的特殊安裝策略來繞過此限制。
+    *   專門負責 **CosyVoice3** 推論 (因 `mlx-audio-plus` 依賴衝突)。
+    *   被主程式透過 `subprocess` 呼叫。
 
-### 1.2 進程間通訊 (IPC)
-*   主程式 (`venv`) 透過 `subprocess.Popen` 呼叫 `venv_cosyvoice3` 中的 Worker 腳本。
-*   通訊方式：標準輸入/輸出 (stdin/stdout)。
-*   資料格式：JSON 訊息流 (Streaming JSON)。
-    *   Worker 輸出每一行都是一個完整的 JSON 物件（包含 `status`, `message`, `progress` 等）。
-    *   任何非 JSON 的輸出（如 stderr 的報錯）會被主程式擷取並記錄到日誌，避免破壞 API 回應。
+### 1.2 智能切分與重組 (Smart Slicer & Merger)
+為了解決長文本導致的「注意力崩潰 (Attention Collapse)」與 M4 記憶體問題，採用「分段生成 + 後期重組」策略：
 
-## 2. 關鍵實作細節與 workaround
+1.  **文字切分 (`core/text_slicer.py`)**:
+    *   **Tier 1**: 以換行符 `\n` 切分段落。
+    *   **Tier 2 (Merge)**: 過短段落 (< 10 字) 自動合併至前一段，避免語音破碎。
+    *   **Tier 3 (Split)**: 過長段落 (> 300/500 字) 強制在標點符號 (`。！？`) 處切分。
+    *   **Cleaning**: Regex 自動移除 `*`, `#`, `---` 等 Markdown 雜訊。
 
-### 2.1 CosyVoice3 模型注入 (Model Injection)
-*   **問題**：標準的 `pip install mlx-audio` PyPI 包**不包含** CosyVoice3 模型定義檔。即使安裝了也無法使用。
-*   **解法**：我們利用 `mlx-audio-plus` 套件，它包含了模型定義。
-*   **特殊安裝**：
-    ```bash
-    pip install --no-deps mlx-audio-plus==0.1.8
-    ```
-    這會把模型檔案注入到 `site-packages/mlx_audio/tts/models/cosyvoice3`，讓標準的 `mlx_audio` 也能讀取到模型。
+2.  **斷點續傳 (`core/tts_engine.py`)**:
+    *   生成時以 **Chunk** (段落) 為單位，存檔為 `temp_chunks/{task_id}/ch_{idx}/chunk_{XXXX}.wav`。
+    *   **Fault Tolerance**: 若程式崩潰，重跑時會自動跳過已存在的有效 Chunk (`Skip Existing`)。
 
-### 2.2 遺失的依賴 (Missing Dependencies)
-*   **`einops`**: `mlx-audio` 的 PyPI 包依賴列表中漏掉了 `einops`，導致執行時會報錯 `No module named 'einops'`。
-*   **解決**：必須顯式在 `requirements_cosy.txt` 或安裝腳本中加入 `einops`。
-*   **驗證**：`core/verify_env_cosy.py` 已加入對 `einops` 的檢查。
+3.  **音訊重組 (`core/audio_merger.py`)**:
+    *   使用 `ffmpeg-python` 將 Chunk 合併。
+    *   **Silence Padding**: 每個 Chunk 之間插入 **300ms 靜音**，確保語速自然。
+    *   合併完成後自動清除暫存檔。
 
-### 2.3 啟動優化 (Startup Optimization)
-*   **Marker File**: 為了避免每次啟動都重新跑 pip install（很慢），`start_app.command` 會檢查 `.installed_{hash}` 檔案。
-*   **Checksum**: Hash 值由 `requirements.txt` + `requirements_cosy.txt` 的內容計算得出。只要修改了依賴檔，下次啟動就會自動觸發重新安裝。
+### 1.3 M4 效能優化 (Apple Silicon Optimization)
+針對 Mac M4 晶片的特別調優：
+*   **GC & Cache**: 每生成 10 個 Chunks 執行一次 `gc.collect()` 與 `torch.mps.empty_cache()`，防止 unified memory 爆滿。
+*   **FP16**: 模型載入強制使用 FP16 (若支援)。
+*   **Fixed Seed**: 固定隨機種子 (`seed=42`) 以確保同一段落重跑時語調一致。
 
-## 3. 已知限制與潛在問題 (Known Issues)
+## 2. 目前狀態 (Current Status)
 
-### 3.1 模型下載體積
-*   CosyVoice3 模型 + Qwen3 模型首次執行需要下載約 **2GB - 3GB** 的權重檔。
-*   **風險**：若用戶網路不穩，下載中斷可能會導致 Hugging Face cache 損壞。
-*   **解法**：目前依賴 `huggingface_hub` 自動處理，若失敗需手動清除 cache (`~/.cache/huggingface`)。
+| 元件 | 狀態 | 備註 |
+|:---|:---:|:---|
+| **CosyVoice3** | ✅ 正常 | 需使用 `venv_cosyvoice3`，支援 Zero-shot Voice Cloning (需 Ref Audio) |
+| **Qwen3-TTS** | ✅ 正常 | 運行於 Main venv，支援 Voice Cloning (需 Ref Audio + Ref Text) |
+| **EPUB Parser** | ✅ 正常 | 支援章節過濾、智慧跳過 (目錄/版權頁) |
+| **Web UI** | ✅ 正常 | 支援進度條、日誌顯示、斷點續傳 |
 
-### 3.2 冷啟動時間 (Cold Start)
-*   CosyVoice3 模型載入需要約 5-10 秒（視記憶體頻寬而定）。
-*   目前設計是 **Lazy Loading**（第一次請求生成時才載入），這會導致點擊「開始」後第一句回應較慢。
+## 3. 已知問題與注意事項 (Known Issues & Notes)
 
-### 3.3 記憶體佔用
-*   雙 TTS 引擎若同時開啟，加上 Web API，建議至少需要 **16GB 統一記憶體**。
-*   8GB 機型可能會因為 Swap 而變慢，雖可執行但不建議多工操作。
+### 3.1 Qwen3 的 Voice Cloning 限制
+*   **問題**: Qwen3 使用 `mlx_audio`，若未提供 `ref_text`，它會嘗試內部 Whisper 轉錄。若轉錄失敗 (如環境問題)，會導致 `Processor not found` 崩潰。
+*   **現狀 (Fix applied)**: 
+    1. 系統會嘗試用 CosyVoice3 env 進行轉錄。
+    2. 若轉錄失敗，Qwen3 Worker 會自動**降級**：捨棄 Ref Audio，改用預設音色生成 (避免崩潰)。
 
-## 4. 未來優化方向 (TODOs)
+### 3.2 外部依賴 (External Dependencies)
+*   **FFmpeg**: 系統依賴系統層級的 `ffmpeg` 指令進行音訊合併。
+    *   必須安裝: `brew install ffmpeg`
+    *   若未安裝，會在啟動時警告，且最後合併步驟會失敗。
 
-1.  **整合單一環境**：
-    *   等待 `mlx-audio` 或 `mlx-audio-plus` 更新，解決版本依賴衝突後，可嘗試合併回單一 venv，減少磁碟佔用（目前約 1.5GB -> 800MB）。
-2.  **模型量化 (Quantization)**：
-    *   目前使用預設精度（通常是 float16/bfloat16）。若能支援 4-bit 量化，可大幅降低記憶體需求。
-3.  **串流播放 (Streaming Playback)**：
-    *   目前 Web UI 是等待單句生成完畢後才回傳進度。未來可改為 WebSocket 真·串流音訊回傳，實現「邊聽邊生成」。
-4.  **自動更新 (Auto Update)**：
-    *   加入 `git pull` 機制或簡單的版本檢查 API，提示用戶有新版本。
+### 3.3 句子截斷風險
+*   若單一句子長度超過 `max_chars` (300/500) 且**完全沒有標點符號**，TextSlicer 會被迫硬切分 (Hard Split)，可能導致語句在不自然的地方中斷並插入 300ms 靜音。(目前機率低，暫不處理)
+
+## 4. 開發指引 (Dev Guide)
+
+*   **啟動伺服器**: `./start_app.command` (會自動檢查依賴)
+*   **手動測試 Slicer**: `python3 test_text_slicer.py`
+*   **手動測試 Merger**: `python3 test_audio_merger.py` (需 ffmpeg)
+*   **查看錯誤日誌**: `backend_error.log` (主程式), `chunk_error.log` (Worker)
 
 ---
-*Last Updated: v0.2.0*
+*Last Updated: v0.3.0*

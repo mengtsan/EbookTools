@@ -14,6 +14,7 @@ from typing import List
 from core.epub_parser import EbookParser
 from core.tts_engine import MLXEngine
 from core.audio_proc import AudioPostProcessor
+from core.audio_merger import AudioMerger
 from core.voice_design import VoiceDesigner
 from core.translator import SubprocessTranslator
 from core.epub_writer import EpubWriter
@@ -34,8 +35,9 @@ UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "output" # Final MP3s
 VOICE_DIR = "voices"
 TRANSLATION_DIR = "translations"
+CHUNK_DIR = "temp_chunks"  # Fault-tolerant chunk cache
 
-for d in [UPLOAD_DIR, OUTPUT_DIR, VOICE_DIR, TRANSLATION_DIR]:
+for d in [UPLOAD_DIR, OUTPUT_DIR, VOICE_DIR, TRANSLATION_DIR, CHUNK_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # State
@@ -248,7 +250,6 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
             if os.path.exists(default_ref):
                 voice_path = default_ref
             else:
-                # Fallback or error? CosyVoice3 requires ref.
                 print("Warning: No voice selected and no default_ref.wav found.")
                 voice_path = None
         
@@ -256,13 +257,9 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
             book_meta = json.load(f)
             
         all_chapters = book_meta['chapters']
-        # Filter selected
         chapters_to_process = [c for c in all_chapters if str(c['id']) in selected_ids or str(all_chapters.index(c)) in selected_ids] 
-        # Note: Frontend should pass IDs that match what parser returned.
-        # Simple fallback: if IDs match
         
         if not chapters_to_process:
-             # Fallback logic if frontend sends indices or just IDs
              chapters_to_process = [c for c in all_chapters if str(c['id']) in selected_ids]
 
         total_chapters = len(chapters_to_process)
@@ -275,6 +272,9 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
         tts_engine.load_model_by_type(model_type)
         tts_engine.load()
         
+        # Access the internal SubprocessTTSEngine for generate_chapter
+        engine = tts_engine._subprocess_engine
+        
         tasks[task_id]["total_chapters"] = total_chapters
         
         for idx, chapter in enumerate(chapters_to_process):
@@ -283,7 +283,7 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
             tasks[task_id]["remaining_chapters"] = total_chapters - idx
             tasks[task_id]["progress"] = int((idx / total_chapters) * 100)
             
-            # Check if exists
+            # Check if final MP3 already exists (chapter-level skip)
             safe_title = re.sub(r'[\\/*?:"<>|]', "", chapter['title'])
             out_filename = f"{idx+1:03d}_{safe_title}.mp3"
             out_path = os.path.join(book_output_dir, out_filename)
@@ -295,37 +295,48 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
             tasks[task_id]["logs"].append(f"Generating {chapter['title']}...")
             
             # Words tracking
-            chapter_text_len = len(chapter['text']) # Approximation for characters/words
+            chapter_text_len = len(chapter['text'])
             tasks[task_id]["current_words_total"] = chapter_text_len
             tasks[task_id]["current_words_processed"] = 0
             
-            # Generate
-            audio_segments = []
-            
             start_time = time.time()
             
-            # Streaming generation
-            gen = tts_engine.generate_stream(chapter['text'], voice_path)
+            # --- New v0.3.0 Pipeline: generate_chapter + AudioMerger ---
             
-            for progress_chunk, audio_chunk in gen:
-                # Update sub-progress
-                processed = int(progress_chunk * chapter_text_len)
+            # Create chunk directory for this chapter (fault tolerance)
+            chapter_chunk_dir = os.path.join(
+                CHUNK_DIR, task_id, f"ch_{idx:03d}"
+            )
+            
+            # Progress callback to update task state
+            def on_chunk_progress(chunk_idx, total_chunks, chunk_text):
+                processed = int((chunk_idx + 1) / total_chunks * chapter_text_len)
                 tasks[task_id]["current_words_processed"] = processed
-                
-                # For now just collect audio
-                seg = AudioPostProcessor.numpy_to_audio_segment(audio_chunk)
-                audio_segments.append(seg)
-                
-                # Optional: Force memory cleanup
-                del audio_chunk
             
-            # Save
+            # Generate all chunks (with crash-resume: skips existing valid chunks)
+            chunk_dir = engine.generate_chapter(
+                text=chapter['text'],
+                ref_audio_path=voice_path,
+                chunk_dir=chapter_chunk_dir,
+                progress_callback=on_chunk_progress
+            )
+            
+            # Merge chunks into final MP3 using ffmpeg
             tags = {
                 'title': chapter['title'],
                 'artist': 'CosyVoice AI',
                 'album': book_title
             }
-            AudioPostProcessor.save_mp3(audio_segments, out_path, tags)
+            AudioMerger.merge_chunks(
+                chunk_dir=chunk_dir,
+                output_path=out_path,
+                silence_ms=300,
+                bitrate="192k",
+                tags=tags
+            )
+            
+            # Clean up chunk directory after successful merge
+            AudioMerger.cleanup(chunk_dir)
             
             elapsed = time.time() - start_time
             tasks[task_id]["chapter_times"][str(chapter['id'])] = f"{elapsed:.1f}s"
@@ -335,12 +346,17 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
         tasks[task_id]["progress"] = 100
         tasks[task_id]["logs"].append("All chapters completed.")
         
+        # Clean up task-level chunk directory
+        task_chunk_dir = os.path.join(CHUNK_DIR, task_id)
+        AudioMerger.cleanup(task_chunk_dir)
+        
     except Exception as e:
         import traceback
         error_msg = f"Task failed: {e}\n{traceback.format_exc()}"
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["error"] = str(e)
         tasks[task_id]["logs"].append(f"Error: {str(e)}")
+        # NOTE: Chunk directory is preserved on failure for crash-resume
         print(f"\n!!!!!!!!!!!! TASK FAILED !!!!!!!!!!!!\nError details: {str(e)}\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
         print(error_msg)
         try:
@@ -435,3 +451,13 @@ async def get_progress(task_id: str):
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 import re
+
+# Ensure ffmpeg is available (fail-fast)
+try:
+    subprocess_result = __import__('subprocess').run(
+        ['ffmpeg', '-version'], capture_output=True, text=True
+    )
+    if subprocess_result.returncode != 0:
+        print("WARNING: ffmpeg not found. Audio merging will fail. Install with: brew install ffmpeg")
+except FileNotFoundError:
+    print("WARNING: ffmpeg not found. Audio merging will fail. Install with: brew install ffmpeg")
