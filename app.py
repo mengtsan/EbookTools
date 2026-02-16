@@ -11,13 +11,11 @@ import asyncio
 import time
 from typing import List
 
-from core.epub_parser import EbookParser
+from core.epub_processor import EpubProcessor
 from core.tts_engine import MLXEngine
-from core.audio_proc import AudioPostProcessor
 from core.audio_merger import AudioMerger
 from core.voice_design import VoiceDesigner
-from core.translator import SubprocessTranslator
-from core.epub_writer import EpubWriter
+from core.translator_mlx import MLXTranslator
 
 app = FastAPI(title="CosyAudiobook Local Factory")
 
@@ -62,14 +60,17 @@ async def upload_epub(file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
+    # Parse EPUB
+    # We use EpubProcessor which is non-destructive
     try:
-        parser = EbookParser(file_path)
-        chapters = parser.parse()
+        parser = EpubProcessor(file_path)
+        chapters = parser.extract_text_segments()
+        print(f"DEBUG: Extracted {len(chapters)} chapters/segments")
         
         # Save chapters metadata for later
         meta_path = os.path.join(UPLOAD_DIR, f"{file_id}.json")
         with open(meta_path, "w") as f:
-            json.dump({"original_name": file.filename, "chapters": chapters}, f)
+            json.dump({"original_name": file.filename, "file_path": file_path, "chapters": chapters}, f)
             
         return {"book_id": file_id, "chapters": chapters, "filename": file.filename}
     except Exception as e:
@@ -112,40 +113,74 @@ def process_translation_task(task_id, book_id, source_lang, target_lang, model_i
         original_filename = book_meta.get("original_name", "book.epub")
         book_title = original_filename.replace(".epub", "")
         
-        # Load chapters using parser again (or use cached meta? Meta has text)
-        chapters = book_meta.get("chapters", [])
+        # Resolve the EPUB file path
+        input_path = book_meta.get("file_path", os.path.join(UPLOAD_DIR, f"{book_id}.epub"))
+        if not os.path.exists(input_path):
+            # Fallback: search in upload dir
+            for f in os.listdir(UPLOAD_DIR):
+                if f.endswith(".epub") and book_id in f:
+                    input_path = os.path.join(UPLOAD_DIR, f)
+                    break
         
-        # Initialize Translator
-        translator = SubprocessTranslator(model_id=model_id)
+        print(f"DEBUG: Translation input_path={input_path}, exists={os.path.exists(input_path)}")
+        
+        # Initialize Processor (Structure Preserving)
+        processor = EpubProcessor(input_path)
+        chapters = processor.extract_text_segments()
+        
+        # Check extraction
+        if not chapters:
+            raise HTTPException(status_code=400, detail="No translatable content found in EPUB")
+        
+        # Initialize Translator (GGUF Engine)
+        # Check for user-uploaded glossary or default
+        glossary_path = os.path.join(UPLOAD_DIR, "glossary.json")
+        glossary = {}
+        if os.path.exists(glossary_path):
+            with open(glossary_path, 'r', encoding='utf-8') as f:
+                try:
+                    glossary = json.load(f)
+                    print(f"DEBUG: Loaded glossary with {len(glossary)} items")
+                except:
+                    print("DEBUG: Failed to load glossary.json")
+        else:
+            # Check project root default
+            default_gloss = "glossary.json"
+            if os.path.exists(default_gloss):
+                with open(default_gloss, 'r', encoding='utf-8') as f:
+                    try:
+                        glossary = json.load(f)
+                        print(f"DEBUG: Loaded default glossary with {len(glossary)} items")
+                    except:
+                        pass
+
+        translator = MLXTranslator()
         
         def update_progress(p, msg):
             translation_tasks[task_id]["progress"] = p
             translation_tasks[task_id]["message"] = msg
             
         # Run Translation
-        translation_tasks[task_id]["message"] = "Starting translation engine (this may take a few seconds)..."
+        translation_tasks[task_id]["message"] = "Initializing MLX Engine..."
         translated_chapters, translated_title = translator.translate_book(
             chapters,
             book_title=book_title,
-            source_lang=source_lang, 
+            glossary=glossary,  # Pass loaded glossary
             target_lang=target_lang,
             progress_callback=update_progress
         )
         
-        # Generate new EPUB
-        translation_tasks[task_id]["message"] = "Generating translated EPUB..."
+        # Apply translations back to EPUB structure
+        translation_tasks[task_id]["message"] = "Reconstructing EPUB..."
         
         output_filename = f"{book_title}_{target_lang}.epub"
         output_path = os.path.join(TRANSLATION_DIR, output_filename)
         
-        writer = EpubWriter(output_path)
-        # Use translated title for metadata
-        writer.set_metadata(title=f"{translated_title} ({target_lang})", language=target_lang)
+        final_path = processor.apply_translations(translated_chapters, output_path)
         
-        for chap in translated_chapters:
-            writer.add_chapter(chap['title'], chap['text'])
-            
-        writer.write()
+        # Verify
+        if not os.path.exists(final_path):
+             raise RuntimeError("Failed to generate EPUB file")
         
         translation_tasks[task_id]["status"] = "completed"
         translation_tasks[task_id]["progress"] = 100
