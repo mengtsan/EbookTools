@@ -22,7 +22,9 @@ class EpubProcessor:
     """
 
     # Tags whose text content we extract and translate
-    TRANSLATABLE_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    # Tags whose text content we extract and translate
+    # Added 'a' to translate link text individually without destroying hrefs
+    TRANSLATABLE_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a']
 
     def __init__(self, filepath):
         self.filepath = filepath
@@ -122,6 +124,11 @@ class EpubProcessor:
             # 2. Extract block-level text tags (simple, reliable)
             for tag in soup.find_all(self.TRANSLATABLE_TAGS):
                 # Skip tags containing images or other complex elements
+                # ALSO SKIP tags containing 'a' (links) if the tag itself is not 'a'
+                # This prevents <p><a>...</a></p> from being wiped. We will process <a> separately.
+                if tag.name != 'a' and tag.find('a'):
+                    continue
+                
                 if tag.find(['img', 'image', 'svg', 'table', 'pre', 'code']):
                     continue
                 
@@ -323,6 +330,10 @@ class EpubProcessor:
         # 5. Replace block-level tags sequentially
         matched_count = 0
         for tag in soup.find_all(self.TRANSLATABLE_TAGS):
+            # Same logic as extraction: skip parent blocks that contain links
+            if tag.name != 'a' and tag.find('a'):
+                continue
+
             if tag.find(['img', 'image', 'svg', 'table', 'pre', 'code']):
                 continue
             

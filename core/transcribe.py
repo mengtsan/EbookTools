@@ -9,6 +9,10 @@ import json
 import os
 
 def main():
+    # Force unbuffered stderr for debugging
+    sys.stderr.reconfigure(encoding='utf-8')
+    print("DEBUG: transcribe.py starting...", file=sys.stderr, flush=True)
+    
     if len(sys.argv) < 2:
         print(json.dumps({"error": "Usage: transcribe.py <json_params>"}), flush=True)
         sys.exit(1)

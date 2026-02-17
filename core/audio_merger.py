@@ -39,7 +39,16 @@ class AudioMerger:
             "-sample_fmt", "s16",
             output_path
         ]
-        subprocess.run(cmd, capture_output=True, check=True)
+        print(f"DEBUG: Generating silence: {' '.join(cmd)}", flush=True)
+        try:
+            # stdin=subprocess.DEVNULL is critical to prevent ffmpeg from reading TTY and getting SIGTTIN
+            subprocess.run(cmd, capture_output=True, check=True, timeout=30, stdin=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            print(f"ERROR: Silence generation timed out", flush=True)
+            raise
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Silence generation failed: {e.stderr}", flush=True)
+            raise
         return output_path
 
     @staticmethod
@@ -115,8 +124,24 @@ class AudioMerger:
 
             cmd.append(output_path)
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            print(f"DEBUG: Executing ffmpeg merge: {' '.join(cmd)}")
+            
+            # Run with timeout to prevent hangs
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120, # 2 minute timeout for merge
+                    check=False,
+                    stdin=subprocess.DEVNULL
+                )
+            except subprocess.TimeoutExpired:
+                 print(f"ERROR: ffmpeg merge timed out after 120s", flush=True)
+                 raise
+
             if result.returncode != 0:
+                print(f"ERROR: ffmpeg failed.\nStdout: {result.stdout}\nStderr: {result.stderr}", flush=True)
                 raise subprocess.CalledProcessError(
                     result.returncode, cmd, result.stdout, result.stderr
                 )

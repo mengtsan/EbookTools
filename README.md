@@ -148,6 +148,8 @@ EbookTools/
 
 ## 🔧 Troubleshooting
 
+> For deep technical details, architecture overview, and development guidelines, please refer to the **[System Architecture & Development Guide (Issue R3)](issue_r1.md)**.
+
 | Problem | Solution |
 |---------|----------|
 | Port 8000 already in use | Run `pkill -f uvicorn` or change port |

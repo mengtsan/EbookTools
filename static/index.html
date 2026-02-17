@@ -408,6 +408,11 @@
                     transDownloadUrl: null
                 }
             },
+            mounted() {
+                console.log("Vue Mounted");
+                this.logs.push("✅ 系統已就緒 (System Ready)");
+                this.logs.push("若看不見此訊息，代表程式發生錯誤");
+            },
             computed: {
                 selectedChapters() {
                     return this.chapters.filter(c => c.selected);
@@ -466,11 +471,17 @@
                     chapter.selected = !chapter.selected;
                 },
                 async startGeneration() {
-                    if (!this.bookId) return;  // Voice is now optional
+                    this.logs.push("Debug: Start button clicked");
+                    if (!this.bookId) {
+                        this.logs.push("Error: No Book ID");
+                        return;
+                    }
 
                     const selectedIds = this.chapters
                         .filter(c => c.selected)
                         .map(c => c.id);
+
+                    this.logs.push(`Debug: Selected ${selectedIds.length} chapters`);
 
                     if (selectedIds.length === 0) {
                         alert("請至少選擇一個章節。");
@@ -485,15 +496,26 @@
                     formData.append('selected_chapters', JSON.stringify(selectedIds));
                     formData.append('model_type', this.selectedModel);
 
+                    this.logs.push(`Debug: Sending request to /api/generate...`);
+
                     try {
                         const res = await fetch('/api/generate', { method: 'POST', body: formData });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            this.logs.push(`Error: HTTP ${res.status} - ${errText}`);
+                            throw new Error(`HTTP ${res.status}`);
+                        }
+
                         const data = await res.json();
+                        this.logs.push(`Debug: Task started: ${data.task_id}`);
                         this.taskId = data.task_id;
                         this.taskStatus = 'processing';
-                        this.logs.push(`任務已開始：${this.taskId}`);
                         this.startPolling();
                     } catch (err) {
-                        alert("啟動失敗");
+                        console.error(err);
+                        this.logs.push(`Error: ${err.message}`);
+                        alert("啟動失敗: " + err.message);
                     }
                 },
                 // Translation Methods
@@ -537,20 +559,20 @@
                 pollTranslation() {
                     console.log("Starting polling for task:", this.transTaskId);
                     const evtSource = new EventSource(`/api/translation_progress/${this.transTaskId}`);
-                    
+
                     evtSource.onmessage = (event) => {
                         const data = JSON.parse(event.data);
                         console.log("Poll data:", data);
-                        
+
                         if (data.status === 'not_found') {
                             evtSource.close();
                             return;
                         }
-                        
+
                         this.transStatus = data.status;
                         this.transProgress = data.progress;
                         this.transMessage = data.message;
-                        
+
                         if (data.status === 'completed') {
                             evtSource.close();
                             this.transDownloadUrl = `/api/download_translation/${data.output_filename}`;
@@ -558,7 +580,7 @@
                             evtSource.close();
                         }
                     };
-                    
+
                     evtSource.onerror = (err) => {
                         console.error("EventSource failed:", err);
                         evtSource.close();

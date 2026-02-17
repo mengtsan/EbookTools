@@ -267,6 +267,9 @@ async def start_generation(
 def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen3"):
     tasks[task_id]["status"] = "processing"
     
+    print(f"TRACE: Enter process_book_task task_id={task_id}", flush=True)
+    print(f"TRACE: Args: book_id={book_id}, voice_id={voice_id}, model_type={model_type}", flush=True)
+    
     try:
         # Load Resources
         epub_path = os.path.join(UPLOAD_DIR, f"{book_id}.epub")
@@ -297,6 +300,8 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
         if not chapters_to_process:
              chapters_to_process = [c for c in all_chapters if str(c['id']) in selected_ids]
 
+        print(f"TRACE: Total chapters to process: {len(chapters_to_process)}", flush=True)
+
         total_chapters = len(chapters_to_process)
         book_title = book_meta.get("original_name", "Audiobook").replace(".epub", "")
         
@@ -304,15 +309,21 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
         os.makedirs(book_output_dir, exist_ok=True)
         
         # Ensure correct model is loaded
+        print(f"TRACE: Loading model type: {model_type}", flush=True)
         tts_engine.load_model_by_type(model_type)
+        print("TRACE: tts_engine.load() calling...", flush=True)
         tts_engine.load()
+        print("TRACE: tts_engine loaded.", flush=True)
         
         # Access the internal SubprocessTTSEngine for generate_chapter
         engine = tts_engine._subprocess_engine
         
         tasks[task_id]["total_chapters"] = total_chapters
         
+        print("TRACE: Starting chapter loop...", flush=True)
+        
         for idx, chapter in enumerate(chapters_to_process):
+            print(f"TRACE: Loop idx={idx}, title={chapter['title']}", flush=True)
             tasks[task_id]["current_chapter"] = chapter['title']
             tasks[task_id]["current_chapter_index"] = idx + 1
             tasks[task_id]["remaining_chapters"] = total_chapters - idx
@@ -325,12 +336,14 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
             
             if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
                 tasks[task_id]["logs"].append(f"Skipping {chapter['title']} (Exists)")
+                print(f"TRACE: Skipping {chapter['title']} (Exists)", flush=True)
                 continue
 
             tasks[task_id]["logs"].append(f"Generating {chapter['title']}...")
             
             # Words tracking
             chapter_text_len = len(chapter['text'])
+            print(f"TRACE: Chapter text len: {chapter_text_len}", flush=True)
             tasks[task_id]["current_words_total"] = chapter_text_len
             tasks[task_id]["current_words_processed"] = 0
             
@@ -349,12 +362,14 @@ def process_book_task(task_id, book_id, voice_id, selected_ids, model_type="qwen
                 tasks[task_id]["current_words_processed"] = processed
             
             # Generate all chunks (with crash-resume: skips existing valid chunks)
+            print("TRACE: Calling engine.generate_chapter...", flush=True)
             chunk_dir = engine.generate_chapter(
                 text=chapter['text'],
                 ref_audio_path=voice_path,
                 chunk_dir=chapter_chunk_dir,
                 progress_callback=on_chunk_progress
             )
+            print("TRACE: engine.generate_chapter returned.", flush=True)
             
             # Merge chunks into final MP3 using ffmpeg
             tags = {

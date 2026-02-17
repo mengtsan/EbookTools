@@ -1,0 +1,201 @@
+.body_text {
+  display: block;
+  font-family: "@ｍｓ 明朝", serif;
+  font-size: 1em;
+  line-height: 1.75;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: justify;
+  margin: 0 5pt;
+}
+.bold {
+  font-size: 1em;
+  font-weight: bold;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.bold1 {
+  font-size: 1em;
+  font-weight: bold;
+  line-height: 1.2;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.calibre {
+  -epub-text-underline-position: under left;
+  -webkit-text-underline-position: under left;
+  -webkit-writing-mode: horizontal-tb;
+  writing-mode: horizontal-tb;
+}
+.calibre1 {
+  -epub-text-underline-position: under left;
+  -webkit-text-underline-position: under left;
+  -webkit-writing-mode: vertical-rl;
+  writing-mode: vertical-rl;
+}
+.calibre2 {
+  display: block;
+  font-size: 1em;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.calibre3 {
+  display: block;
+}
+.calibre4 {
+  text-decoration: none;
+}
+.calibre5 {
+  font-size: 1em;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.imgfit {
+  display: block;
+  font-size: 1em;
+  line-height: 1.2;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.imgpage {
+  display: block;
+  font-family: "@ｍｓ 明朝", serif;
+  font-size: 1.66667em;
+  line-height: 1.2;
+  text-align: center;
+  margin: 0 5pt;
+  padding: 0;
+}
+.large {
+  font-size: 1.29167em;
+  line-height: 1.2;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.mystyle_heading {
+  display: block;
+  font-family: "@ＭＳ ゴシック", sans-serif;
+  font-size: 1em;
+  font-weight: bold;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.mystyle_padding-start_1_1em_text-indent_-1_1em {
+  display: block;
+  font-size: 1em;
+  outline: 0;
+  text-indent: -1.1em;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 1.1em 0 0;
+  border: currentColor none 0;
+}
+.mystyle_padding-start_1em {
+  display: block;
+  font-size: 1em;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 1em 0 0;
+  border: currentColor none 0;
+}
+.mystyle_text-indent_1em {
+  display: block;
+  font-size: 1em;
+  outline: 0;
+  text-indent: 1em;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.pagefit {
+  display: block;
+  font-size: 1em;
+  height: auto;
+  line-height: 1.2;
+  outline: 0;
+  vertical-align: baseline;
+  width: auto;
+  margin: auto;
+  padding: 0;
+  border: currentColor none 0;
+}
+.sideways {
+  -epub-text-orientation: sideways;
+  -webkit-text-orientation: sideways;
+  font-size: 1em;
+  outline: 0;
+  text-orientation: sideways;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.small {
+  font-size: 0.83333em;
+  outline: 0;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.tcy {
+  -webkit-text-combine: horizontal;
+  -webkit-text-combine-upright: all;
+  font-size: 1em;
+  outline: 0;
+  text-combine-upright: all;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.tocpage {
+  display: block;
+  font-family: "@ｍｓ 明朝", serif;
+  font-size: 1em;
+  line-height: 1.75;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: left;
+  margin: 0 5pt;
+}
+.upright {
+  -epub-text-orientation: upright;
+  -webkit-text-orientation: upright;
+  font-size: 1em;
+  outline: 0;
+  text-orientation: upright;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: currentColor none 0;
+}
+.pcalibre:link {
+  color: #00008b;
+}
+.pcalibre1:visited {
+  color: #00008b;
+}

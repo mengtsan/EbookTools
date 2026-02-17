@@ -100,7 +100,9 @@ class TextSlicer:
         3. Merge short segments (< MIN_CHARS) into previous
         4. Split long segments (> max_chars) at punctuation
         """
+        print(f"TRACE: TextSlicer.slice called with {len(text)} chars", flush=True)
         cleaned = self.clean_text(text)
+        print(f"TRACE: Text cleaned. Len: {len(cleaned)}", flush=True)
         if not cleaned:
             return []
 

@@ -73,10 +73,11 @@ class SubprocessTTSEngine:
 
     def set_model_type(self, model_type):
         """Switch model type. Memory is automatically released since we use subprocess."""
+        print(f"TRACE: set_model_type called with {model_type}", flush=True)
         if model_type not in self.MODELS:
             raise ValueError(f"Unknown model type: {model_type}. Available: {list(self.MODELS.keys())}")
         self.model_type = model_type
-        print(f"Model type set to: {model_type}")
+        print(f"Model type set to: {model_type}", flush=True)
 
     def get_text_slicer(self) -> TextSlicer:
         """Get a TextSlicer configured for the current model type."""
@@ -109,14 +110,25 @@ class SubprocessTTSEngine:
             cmd = [python_exec, "core/transcribe.py", json.dumps({"audio_path": audio_path})]
 
             try:
-                print(f"  Trying transcription with {env_name} env...")
+                # Force unbuffered IO
+                env = os.environ.copy()
+                env["PYTHONUNBUFFERED"] = "1"
+                
+                print(f"DEBUG: Transcribing with command: {' '.join(cmd)}")
+                
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
                     timeout=120,  # 2 minute timeout for transcription
-                    cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    env=env
                 )
+                
+                # DEBUG: Log output
+                # result.stdout and result.stderr are populated because capture_output=True
+                # print(f"--- Transcribe Output ({env_name}) ---\n{result.stdout}\n--- kw ---") 
+
 
                 if result.returncode != 0:
                     print(f"  Transcription failed with {env_name}: {result.stderr[:200]}", file=sys.stderr)
@@ -184,13 +196,19 @@ class SubprocessTTSEngine:
         python_exec = self._get_python_executable(config["python"])
         cmd = [python_exec, config["script"], json.dumps(params)]
 
+        # Force unbuffered IO for subprocess to avoid hangs
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+
         try:
+            print(f"DEBUG: Executing subprocess: {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout per chunk
-                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                env=env
             )
 
             # DEBUG: Print stderr/stdout to server log

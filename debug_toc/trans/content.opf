@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
+  <metadata xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:calibre="http://calibre.kovidgoyal.net/2009/metadata">
+    <dc:language>ja</dc:language>
+    <dc:title>來到這個男女比例為 1:99 的異世界之後，擁有三種SS級技能的我，卻被冒險家、王女和騎士們爭相爭奪，真讓我不知該怎辦好啊！？（大家文庫）</dc:title>
+    <meta name="calibre:title_sort" content="男女比1:99の異世界に来ていた3: SSスキル持ちの僕を冒険者や王女、騎士が奪い合おうとして困っているんですけど！？ (わんた文庫)"/>
+    <dc:creator opf:file-as="わんた" opf:role="aut">わんた</dc:creator>
+    <dc:contributor opf:role="bkp">calibre (7.9.0) [https://calibre-ebook.com]</dc:contributor>
+    <dc:identifier opf:scheme="MOBI-ASIN">B0DLB4WBQ5</dc:identifier>
+    <dc:identifier id="uuid_id" opf:scheme="uuid">77455b16-6f0e-4a95-a454-074212627909</dc:identifier>
+    <dc:identifier opf:scheme="calibre">77455b16-6f0e-4a95-a454-074212627909</dc:identifier>
+    <dc:date>2024-11-16T05:00:00+00:00</dc:date>
+    <meta name="calibre:timestamp" content="2024-12-22T06:04:39.548459+00:00"/>
+    <meta name="cover" content="cover"/>
+    <meta name="primary-writing-mode" content="vertical-rl"/>
+  </metadata>
+  <manifest>
+    <item id="cover" href="cover1.jpeg" media-type="image/jpeg"/>
+    <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
+    <item id="id13" href="text/part0000.html" media-type="application/xhtml+xml"/>
+    <item id="id14" href="text/part0001.html" media-type="application/xhtml+xml"/>
+    <item id="id15" href="text/part0002.html" media-type="application/xhtml+xml"/>
+    <item id="id16" href="text/part0003.html" media-type="application/xhtml+xml"/>
+    <item id="id17" href="text/part0004.html" media-type="application/xhtml+xml"/>
+    <item id="id18" href="text/part0005.html" media-type="application/xhtml+xml"/>
+    <item id="id19" href="text/part0006.html" media-type="application/xhtml+xml"/>
+    <item id="id20" href="text/part0007.html" media-type="application/xhtml+xml"/>
+    <item id="id21" href="text/part0008.html" media-type="application/xhtml+xml"/>
+    <item id="id22" href="text/part0009.html" media-type="application/xhtml+xml"/>
+    <item id="id23" href="text/part0010.html" media-type="application/xhtml+xml"/>
+    <item id="id24" href="text/part0011.html" media-type="application/xhtml+xml"/>
+    <item id="id25" href="text/part0012.html" media-type="application/xhtml+xml"/>
+    <item id="id26" href="text/part0013.html" media-type="application/xhtml+xml"/>
+    <item id="id27" href="text/part0014.html" media-type="application/xhtml+xml"/>
+    <item id="id28" href="text/part0015.html" media-type="application/xhtml+xml"/>
+    <item id="id29" href="text/part0016.html" media-type="application/xhtml+xml"/>
+    <item id="id30" href="text/part0017.html" media-type="application/xhtml+xml"/>
+    <item id="id31" href="text/part0018.html" media-type="application/xhtml+xml"/>
+    <item id="id1" href="images/00001.jpeg" media-type="image/jpeg"/>
+    <item id="id2" href="images/00002.jpeg" media-type="image/jpeg"/>
+    <item id="id3" href="images/00003.jpeg" media-type="image/jpeg"/>
+    <item id="page_css" href="page_styles.css" media-type="text/css"/>
+    <item id="css" href="stylesheet.css" media-type="text/css"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+  </manifest>
+  <spine toc="ncx" page-progression-direction="rtl">
+    <itemref idref="titlepage"/>
+    <itemref idref="id13"/>
+    <itemref idref="id14"/>
+    <itemref idref="id15"/>
+    <itemref idref="id16"/>
+    <itemref idref="id17"/>
+    <itemref idref="id18"/>
+    <itemref idref="id19"/>
+    <itemref idref="id20"/>
+    <itemref idref="id21"/>
+    <itemref idref="id22"/>
+    <itemref idref="id23"/>
+    <itemref idref="id24"/>
+    <itemref idref="id25"/>
+    <itemref idref="id26"/>
+    <itemref idref="id27"/>
+    <itemref idref="id28"/>
+    <itemref idref="id29"/>
+    <itemref idref="id30"/>
+    <itemref idref="id31"/>
+  </spine>
+  <guide>
+    <reference type="text" href="text/part0000.html#0-b022f2a2877f4e4897ab10c5c66333e3" title="本編"/>
+    <reference type="toc" href="text/part0001.html#UGI0-b022f2a2877f4e4897ab10c5c66333e3" title="目次"/>
+    <reference type="cover" href="titlepage.xhtml" title="Cover"/>
+  </guide>
+</package>

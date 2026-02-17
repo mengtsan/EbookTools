@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="jpn">
+  <head>
+    <meta name="dtb:uid" content="77455b16-6f0e-4a95-a454-074212627909"/>
+    <meta name="dtb:depth" content="2"/>
+    <meta name="dtb:generator" content="calibre (7.9.0)"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>我這個擁有三種SS級技能、卻生活在一個男女比例為1:99的異世界中，結果各種冒險家、王女和騎士都爭相想要搶走我，真的讓我好為難啊！？（灣田文庫）</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="num_1" playOrder="1" class="chapter">
+      <navLabel>
+        <text>序幕：再次被綁架</text>
+      </navLabel>
+      <content src="text/part0002.html"/>
+    </navPoint>
+    <navPoint id="num_2" playOrder="2" class="chapter">
+      <navLabel>
+        <text>蓬昌教的教義</text>
+      </navLabel>
+      <content src="text/part0003.html"/>
+    </navPoint>
+    <navPoint id="num_3" playOrder="3" class="chapter">
+      <navLabel>
+        <text>蕾貝塔：這次翻牀行為又失敗了。</text>
+      </navLabel>
+      <content src="text/part0004.html"/>
+    </navPoint>
+    <navPoint id="num_4" playOrder="4" class="chapter">
+      <navLabel>
+        <text>了解博雷爾島——蓬昌教總部之介</text>
+      </navLabel>
+      <content src="text/part0005.html"/>
+    </navPoint>
+    <navPoint id="num_5" playOrder="5" class="chapter">
+      <navLabel>
+        <text>赫莉：做好心理準備吧。</text>
+      </navLabel>
+      <content src="text/part0006.html"/>
+    </navPoint>
+    <navPoint id="num_6" playOrder="6" class="chapter">
+      <navLabel>
+        <text>城中的騷動</text>
+      </navLabel>
+      <content src="text/part0007.html"/>
+    </navPoint>
+    <navPoint id="num_7" playOrder="7" class="chapter">
+      <navLabel>
+        <text>普爾貝爾：米歇爾的說服</text>
+      </navLabel>
+      <content src="text/part0008.html"/>
+    </navPoint>
+    <navPoint id="num_8" playOrder="8" class="chapter">
+      <navLabel>
+        <text>米歇爾的告白</text>
+      </navLabel>
+      <content src="text/part0009.html"/>
+    </navPoint>
+    <navPoint id="num_9" playOrder="9" class="chapter">
+      <navLabel>
+        <text>侵略者</text>
+      </navLabel>
+      <content src="text/part0010.html"/>
+    </navPoint>
+    <navPoint id="num_10" playOrder="10" class="chapter">
+      <navLabel>
+        <text>雷貝塔：紀念活動的舉辦</text>
+      </navLabel>
+      <content src="text/part0011.html"/>
+    </navPoint>
+    <navPoint id="num_11" playOrder="11" class="chapter">
+      <navLabel>
+        <text>比賽開始了。</text>
+      </navLabel>
+      <content src="text/part0012.html"/>
+    </navPoint>
+    <navPoint id="num_12" playOrder="12" class="chapter">
+      <navLabel>
+        <text>尤利蒂斯：萌芽中的野望</text>
+      </navLabel>
+      <content src="text/part0013.html"/>
+    </navPoint>
+    <navPoint id="num_13" playOrder="13" class="chapter">
+      <navLabel>
+        <text>【特典SS】蕾貝塔：夜襲者</text>
+      </navLabel>
+      <content src="text/part0014.html"/>
+    </navPoint>
+  </navMap>
+</ncx>
